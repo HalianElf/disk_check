@@ -97,7 +97,6 @@ function main() {
     #$disks = Get-WMIObject Win32_LogicalDisk
     $disks = wmic diskdrive list brief
     #foreach($disk in $disks.DeviceID) {
-    Write-Information $disks.length
     for($i=2; $i -lt $disks.length-2; $i+=2) {
         $formatted = $disks[$i] | Select-String -Pattern "\\\\\.\\PHYSICALDRIVE(\d+)"
         $driveID = $formatted.matches.groups[1]
