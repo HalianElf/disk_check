@@ -17,19 +17,19 @@ $InformationPreference = 'Continue'
 $Host.UI.RawUI.BackgroundColor = 'Black'
 # https://en.wikipedia.org/wiki/S.M.A.R.T.#Known_ATA_S.M.A.R.T._attributes
 $ERROR_ATTRIBUTES = @{
-    "5"="Reallocated_Sector_Ct"
-    "10"="Spin_Retry_Count"
-    "184"="End-to-End_Error"
-    "187"="Reported_Uncorrect"
-    "188"="Command_Timeout"
-    "196"="Reallocated_Event_Count"
-    "197"="Current_Pending_Sector"
-    "198"="Offline_Uncorrectable"
+    "5"="Reallocated_Sector_Ct";
+    "10"="Spin_Retry_Count";
+    "184"="End-to-End_Error";
+    "187"="Reported_Uncorrect";
+    "188"="Command_Timeout";
+    "196"="Reallocated_Event_Count";
+    "197"="Current_Pending_Sector";
+    "198"="Offline_Uncorrectable";
 }
 
 $WARN_ATTRIBUTES = @{
-    "9"="Power_On_Hours"
-    "194"="Temperature"
+    "9"="Power_On_Hours";
+    "194"="Temperature";
 }
 
 # Temp Directory for smart output
@@ -94,19 +94,24 @@ function warn($msg) {
 }
 
 function main() {
-    $disks = Get-WMIObject Win32_LogicalDisk
-    foreach($disk in $disks.DeviceID) {
-        smartctl -a $disk > $tmpDir/smart.txt
+    #$disks = Get-WMIObject Win32_LogicalDisk
+    $disks = wmic diskdrive list brief
+    #foreach($disk in $disks.DeviceID) {
+    Write-Information $disks.length
+    for($i=2; $i -lt $disks.length-2; $i+=2) {
+        $formatted = $disks[$i] | Select-String -Pattern "\\\\\.\\PHYSICALDRIVE(\d+)"
+        $driveID = $formatted.matches.groups[1]
+        smartctl -a /dev/pd${driveID} > $tmpDir/smart.txt
 
         $smartCap = cat $tmpDir/smart.txt | Select-String -Pattern '^SMART support is.*$'
         if(-Not($smartCap -like 'SMART support is: Available - device has SMART capability.')) {
-            error "Drive $disk SMART information is not available."
+            error "/dev/pd${driveID} SMART information is not available."
             Write-Information ""
             Write-Information ""
             Continue
         }
 
-        notice "Drive $disk"
+        notice "/dev/pd${driveID}"
         $healthVal = cat $tmpDir/smart.txt | Select-String -Pattern '^SMART overall-health self-assessment test result:\s+(.*)$'
         if($healthVal.matches.groups[1] -like "PASSED") {
             notice "Health:`t$($healthVal.matches.groups[1])"
@@ -132,8 +137,8 @@ function main() {
             if ($TYPE_VAL -like "Pre-fail") {
                 if (($RAW_VALUE_VAL -gt 0) -Or ($RAW_VALUE_VAL -gt $THRESH_VAL)) {
                     $err = $false
-                    foreach($i in $ERROR_ATTRIBUTES) {
-                        if(($i -eq $ID_VAL) -And ($ERROR_ATTRIBUTES[$i] -eq $ATTRIBUTE_NAME_VAL)) {
+                    foreach($id in $ERROR_ATTRIBUTES) {
+                        if(($id -eq $ID_VAL) -And ($ERROR_ATTRIBUTES[$id] -eq $ATTRIBUTE_NAME_VAL)) {
                             $err = $true
                         }
                     }
@@ -148,8 +153,8 @@ function main() {
             } elseif($TYPE_VAL -like "Old_age") {
                 if($RAW_VALUE_VAL -gt $THRESH_VAL) {
                     $notice = $false
-                    foreach($i in $WARN_ATTRIBUTES) {
-                        if(($i -eq $ID_VAL) -And ($WARN_ATTRIBUTES[$i] -like $ATTRIBUTE_NAME_VAL)) {
+                    foreach($id in $WARN_ATTRIBUTES) {
+                        if(($id -eq $ID_VAL) -And ($WARN_ATTRIBUTES[$id] -like $ATTRIBUTE_NAME_VAL)) {
                             $notice = $true
                         }
                     }
