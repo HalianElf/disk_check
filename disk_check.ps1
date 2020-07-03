@@ -99,11 +99,12 @@ function main() {
     #foreach($disk in $disks.DeviceID) {
     for($i=2; $i -lt $disks.length-2; $i+=2) {
         $formatted = $disks[$i] | Select-String -Pattern "\\\\\.\\PHYSICALDRIVE(\d+)"
-        $driveID = $formatted.matches.groups[1]
+        $driveID = $formatted.Matches.Groups[1]
         smartctl -a /dev/pd${driveID} > $tmpDir/smart.txt
 
         $smartCap = cat $tmpDir/smart.txt | Select-String -Pattern '^SMART support is.*$'
-        if(-Not($smartCap -like 'SMART support is: Available - device has SMART capability.')) {
+        #$smartCap.Matches
+        if(-Not($smartCap.Matches.Value -contains 'SMART support is: Available - device has SMART capability.')) {
             error "/dev/pd${driveID} SMART information is not available."
             Write-Information ""
             Write-Information ""
