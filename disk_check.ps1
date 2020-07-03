@@ -96,19 +96,21 @@ function p_warn($msg) {
 function main() {
     $disks = wmic diskdrive list brief
     for($i=2; $i -lt $disks.length-2; $i+=2) {
-        $formatted = $disks[$i] | Select-String -Pattern "\\\\\.\\PHYSICALDRIVE(\d+)"
-        $driveID = $formatted.Matches.Groups[1]
+        $formatted = $disks[$i] | Select-String -Pattern "(.*)\\\\\.\\PHYSICALDRIVE(\d+)"
+        $diskName = [String]$formatted.Matches.Groups[1]
+        $diskName = $diskName.Trim()
+        $driveID = $formatted.Matches.Groups[2]
         smartctl -a /dev/pd${driveID} > $tmpDir/smart.txt
 
         $smartCap = Get-Content $tmpDir/smart.txt | Select-String -Pattern '^SMART support is.*$'
         if(-Not($smartCap.Matches.Value -contains 'SMART support is: Available - device has SMART capability.')) {
-            p_error "/dev/pd${driveID} SMART information is not available."
+            p_error "/dev/pd${driveID} (${diskName}) SMART information is not available."
             Write-Information ""
             Write-Information ""
             Continue
         }
 
-        p_notice "/dev/pd${driveID}"
+        p_notice "/dev/pd${driveID} (${diskName})"
         $healthVal = Get-Content $tmpDir/smart.txt | Select-String -Pattern '^SMART overall-health self-assessment test result:\s+(.*)$'
         if($healthVal.matches.groups[1] -like "PASSED") {
             p_notice "Health:`t$($healthVal.matches.groups[1])"
