@@ -65,28 +65,28 @@ function Write-ColorOutput() {
     Write-Information $msg
 }
 
-function notice($msg) {
+function p_notice($msg) {
     $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-ColorOutput -nonewline -ForegroundColor gray -MessageData $date
     Write-ColorOutput -nonewline -ForegroundColor green -MessageData " [NOTICE]   "
     Write-ColorOutput -ForegroundColor gray -MessageData $msg
 }
 
-function info($msg) {
+function p_info($msg) {
     $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-ColorOutput -nonewline -ForegroundColor gray -MessageData $date
     Write-ColorOutput -nonewline -ForegroundColor blue -MessageData " [INFO  ]   "
     Write-ColorOutput -ForegroundColor gray -MessageData $msg
 }
 
-function error($msg) {
+function p_error($msg) {
     $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-ColorOutput -nonewline -ForegroundColor gray -MessageData $date
     Write-ColorOutput -nonewline -ForegroundColor red -MessageData " [ERROR ]   "
     Write-ColorOutput -ForegroundColor gray -MessageData $msg
 }
 
-function warn($msg) {
+function p_warn($msg) {
     $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-ColorOutput -nonewline -ForegroundColor gray -MessageData $date
     Write-ColorOutput -nonewline -ForegroundColor yellow -MessageData " [WARN  ]   "
@@ -94,45 +94,42 @@ function warn($msg) {
 }
 
 function main() {
-    #$disks = Get-WMIObject Win32_LogicalDisk
     $disks = wmic diskdrive list brief
-    #foreach($disk in $disks.DeviceID) {
     for($i=2; $i -lt $disks.length-2; $i+=2) {
         $formatted = $disks[$i] | Select-String -Pattern "\\\\\.\\PHYSICALDRIVE(\d+)"
         $driveID = $formatted.Matches.Groups[1]
         smartctl -a /dev/pd${driveID} > $tmpDir/smart.txt
 
-        $smartCap = cat $tmpDir/smart.txt | Select-String -Pattern '^SMART support is.*$'
-        #$smartCap.Matches
+        $smartCap = Get-Content $tmpDir/smart.txt | Select-String -Pattern '^SMART support is.*$'
         if(-Not($smartCap.Matches.Value -contains 'SMART support is: Available - device has SMART capability.')) {
-            error "/dev/pd${driveID} SMART information is not available."
+            p_error "/dev/pd${driveID} SMART information is not available."
             Write-Information ""
             Write-Information ""
             Continue
         }
 
-        notice "/dev/pd${driveID}"
-        $healthVal = cat $tmpDir/smart.txt | Select-String -Pattern '^SMART overall-health self-assessment test result:\s+(.*)$'
+        p_notice "/dev/pd${driveID}"
+        $healthVal = Get-Content $tmpDir/smart.txt | Select-String -Pattern '^SMART overall-health self-assessment test result:\s+(.*)$'
         if($healthVal.matches.groups[1] -like "PASSED") {
-            notice "Health:`t$($healthVal.matches.groups[1])"
+            p_notice "Health:`t$($healthVal.matches.groups[1])"
         } else {
-            error "Health:`t$(healthVal.matches.groups[1])"
+            p_error "Health:`t$(healthVal.matches.groups[1])"
         }
 
         foreach($line in (Get-Content $tmpDir/smart.txt | Select-String -Pattern "(Pre-fail|Old_age)\s+(Always|Offline)")) {
             $line = [String]$line
             $trim = $line.Trim()
             $formattedLine = $($trim -replace '\s+', ",")
-            $ID_VAL = $formattedLine | %{ $_.Split(",")[0]; }
-            $ATTRIBUTE_NAME_VAL = $formattedLine | %{ $_.Split(",")[1]; }
-            $FLAG_VAL = $formattedLine | %{ $_.Split(",")[2]; }
-            $VALUE_VAL = $formattedLine | %{ $_.Split(",")[3]; }
-            $WORST_VAL = $formattedLine | %{ $_.Split(",")[4]; }
-            $THRESH_VAL = $formattedLine | %{ $_.Split(",")[5]; }
-            $TYPE_VAL = $formattedLine | %{ $_.Split(",")[6]; }
-            $UPDATED_VAL = $formattedLine | %{ $_.Split(",")[7]; }
-            $WHEN_FAILED_VAL = $formattedLine | %{ $_.Split(",")[8]; }
-            $RAW_VALUE_VAL = $formattedLine | %{ $_.Split(",")[9]; }
+            $ID_VAL = $formattedLine | ForEach-Object { $_.Split(",")[0]; }
+            $ATTRIBUTE_NAME_VAL = $formattedLine | ForEach-Object { $_.Split(",")[1]; }
+            #$FLAG_VAL = $formattedLine | ForEach-Object{ $_.Split(",")[2]; }
+            #$VALUE_VAL = $formattedLine | ForEach-Object{ $_.Split(",")[3]; }
+            #$WORST_VAL = $formattedLine | ForEach-Object{ $_.Split(",")[4]; }
+            $THRESH_VAL = $formattedLine | ForEach-Object { $_.Split(",")[5]; }
+            $TYPE_VAL = $formattedLine | ForEach-Object { $_.Split(",")[6]; }
+            #$UPDATED_VAL = $formattedLine | ForEach-Object{ $_.Split(",")[7]; }
+            #$WHEN_FAILED_VAL = $formattedLine | ForEach-Object{ $_.Split(",")[8]; }
+            $RAW_VALUE_VAL = $formattedLine | ForEach-Object{ $_.Split(",")[9]; }
 
             if ($TYPE_VAL -like "Pre-fail") {
                 if (($RAW_VALUE_VAL -gt 0) -Or ($RAW_VALUE_VAL -gt $THRESH_VAL)) {
@@ -143,12 +140,12 @@ function main() {
                         }
                     }
                     if($err) {
-                        error "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
+                        p_error "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
                     } else {
-                        warn "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
+                        p_warn "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
                     }
                 } else {
-                    info "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
+                    p_info "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
                 }
             } elseif($TYPE_VAL -like "Old_age") {
                 if($RAW_VALUE_VAL -gt $THRESH_VAL) {
@@ -159,12 +156,12 @@ function main() {
                         }
                     }
                     if($notice){
-                        notice "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
+                        p_notice "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
                     } else {
-                        info "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
+                        p_info "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
                     }
                 } else {
-                    info "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
+                    p_info "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
                 }
             }
         }
