@@ -68,29 +68,48 @@ function Write-ColorOutput() {
 function p_notice($msg) {
     $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-ColorOutput -nonewline -ForegroundColor gray -MessageData $date
-    Write-ColorOutput -nonewline -ForegroundColor green -MessageData " [NOTICE]   "
+    Write-ColorOutput -nonewline -ForegroundColor green -MessageData " [NOTICE]    "
     Write-ColorOutput -ForegroundColor gray -MessageData $msg
 }
 
 function p_info($msg) {
     $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-ColorOutput -nonewline -ForegroundColor gray -MessageData $date
-    Write-ColorOutput -nonewline -ForegroundColor blue -MessageData " [INFO  ]   "
+    Write-ColorOutput -nonewline -ForegroundColor blue -MessageData " [INFO  ]    "
     Write-ColorOutput -ForegroundColor gray -MessageData $msg
 }
 
 function p_error($msg) {
     $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-ColorOutput -nonewline -ForegroundColor gray -MessageData $date
-    Write-ColorOutput -nonewline -ForegroundColor red -MessageData " [ERROR ]   "
+    Write-ColorOutput -nonewline -ForegroundColor red -MessageData " [ERROR ]    "
     Write-ColorOutput -ForegroundColor gray -MessageData $msg
 }
 
 function p_warn($msg) {
     $date = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
     Write-ColorOutput -nonewline -ForegroundColor gray -MessageData $date
-    Write-ColorOutput -nonewline -ForegroundColor yellow -MessageData " [WARN  ]   "
+    Write-ColorOutput -nonewline -ForegroundColor yellow -MessageData " [WARN  ]    "
     Write-ColorOutput -ForegroundColor gray -MessageData $msg
+}
+
+function calcTabs($label) {
+    $count = $label.length + 1
+    #Write-Host -NoNewline "$label, count: ${count}, "
+    if ($count -lt 8) {
+        $tabs = "`t`t`t`t"
+        #Write-Information "tabs: 4"
+    } elseif ($count -ge 8 -And $count -lt 16) {
+        $tabs = "`t`t`t"
+        #Write-Information "tabs: 3"
+    } elseif ($count -ge 16 -And $count -lt 24) {
+        $tabs = "`t`t"
+        #Write-Information "tabs: 2"
+    } elseif ($count -ge 24) {
+        $tabs = "`t"
+        #Write-Information "tabs: 1"
+    }
+    return $tabs
 }
 
 function main() {
@@ -112,10 +131,11 @@ function main() {
 
         p_notice "/dev/pd${driveID} (${diskName})"
         $healthVal = Get-Content $tmpDir/smart.txt | Select-String -Pattern '^SMART overall-health self-assessment test result:\s+(.*)$'
+        $tabs = calcTabs "Health"
         if($healthVal.matches.groups[1] -like "PASSED") {
-            p_notice "Health:`t$($healthVal.matches.groups[1])"
+            p_notice "Health:${tabs}$($healthVal.matches.groups[1])"
         } else {
-            p_error "Health:`t$(healthVal.matches.groups[1])"
+            p_error "Health:${tabs}$(healthVal.matches.groups[1])"
         }
 
         foreach($line in (Get-Content $tmpDir/smart.txt | Select-String -Pattern "(Pre-fail|Old_age)\s+(Always|Offline)")) {
@@ -132,6 +152,7 @@ function main() {
             #$UPDATED_VAL = $formattedLine | ForEach-Object{ $_.Split(",")[7]; }
             #$WHEN_FAILED_VAL = $formattedLine | ForEach-Object{ $_.Split(",")[8]; }
             $RAW_VALUE_VAL = $formattedLine | ForEach-Object{ $_.Split(",")[9]; }
+            $tabs = calcTabs $ATTRIBUTE_NAME_VAL
 
             if ($TYPE_VAL -like "Pre-fail") {
                 if (($RAW_VALUE_VAL -gt 0) -Or ($RAW_VALUE_VAL -gt $THRESH_VAL)) {
@@ -142,12 +163,12 @@ function main() {
                         }
                     }
                     if($err) {
-                        p_error "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
+                        p_error "${ATTRIBUTE_NAME_VAL}:${tabs}${RAW_VALUE_VAL}"
                     } else {
-                        p_warn "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
+                        p_warn "${ATTRIBUTE_NAME_VAL}:${tabs}${RAW_VALUE_VAL}"
                     }
                 } else {
-                    p_info "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
+                    p_info "${ATTRIBUTE_NAME_VAL}:${tabs}${RAW_VALUE_VAL}"
                 }
             } elseif($TYPE_VAL -like "Old_age") {
                 if($RAW_VALUE_VAL -gt $THRESH_VAL) {
@@ -158,12 +179,12 @@ function main() {
                         }
                     }
                     if($notice){
-                        p_notice "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
+                        p_notice "${ATTRIBUTE_NAME_VAL}:${tabs}${RAW_VALUE_VAL}"
                     } else {
-                        p_info "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
+                        p_info "${ATTRIBUTE_NAME_VAL}:${tabs}${RAW_VALUE_VAL}"
                     }
                 } else {
-                    p_info "${ATTRIBUTE_NAME_VAL}:`t${RAW_VALUE_VAL}"
+                    p_info "${ATTRIBUTE_NAME_VAL}:${tabs}${RAW_VALUE_VAL}"
                 }
             }
         }
