@@ -95,19 +95,14 @@ function p_warn($msg) {
 
 function calcTabs($label) {
     $count = $label.length + 1
-    #Write-Host -NoNewline "$label, count: ${count}, "
     if ($count -lt 8) {
         $tabs = "`t`t`t`t"
-        #Write-Information "tabs: 4"
     } elseif ($count -ge 8 -And $count -lt 16) {
         $tabs = "`t`t`t"
-        #Write-Information "tabs: 3"
     } elseif ($count -ge 16 -And $count -lt 24) {
         $tabs = "`t`t"
-        #Write-Information "tabs: 2"
     } elseif ($count -ge 24) {
         $tabs = "`t"
-        #Write-Information "tabs: 1"
     }
     return $tabs
 }
